@@ -1,0 +1,279 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Barlow+Condensed:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Share+Tech+Mono&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── DESIGN TOKENS ────────────────────────────────────────── */
+:root {
+  --bg-root:        #0a0906;
+  --bg-panel:       #131109;
+  --bg-panel-alt:   #181408;
+  --bg-hover:       #1e1a0e;
+  --accent-gold:    #b87a08;
+  --accent-amber:   #d98f14;
+  --accent-bright:  #f5ad28;
+  --accent-iron:    #c44d18;
+  --text-primary:   #ead8b0;
+  --text-secondary: #9a8060;
+  --text-muted:     #4a3c28;
+  --border-dim:     rgba(185, 122, 8, 0.22);
+  --border-mid:     rgba(217, 143, 20, 0.4);
+  --border-bright:  rgba(245, 173, 40, 0.7);
+  --glow-sm:        0 0 12px rgba(185, 122, 8, 0.12);
+  --glow-md:        0 0 24px rgba(185, 122, 8, 0.2), 0 0 48px rgba(185, 122, 8, 0.07);
+  --glow-btn:       0 0 14px rgba(245, 173, 40, 0.45);
+  --radius-panel:   2px;
+}
+
+/* ─── BASE ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { height: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg-root);
+  color: var(--text-primary);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 15px;
+  overflow-x: hidden;
+}
+
+/* Subtle grid overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(185,122,8,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(185,122,8,0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Scanline overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0,0,0,0.04) 3px,
+    rgba(0,0,0,0.04) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+#root { position: relative; z-index: 1; }
+
+/* ─── SCROLLBAR ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--accent-gold); border-radius: 2px; }
+
+/* ─── HUD PANEL ─────────────────────────────────────────────── */
+.hud-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--glow-sm);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.hud-panel:hover {
+  border-color: var(--border-mid);
+  box-shadow: var(--glow-md);
+}
+
+/* Corner brackets */
+.hud-panel::before,
+.hud-panel::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: var(--accent-amber);
+  border-style: solid;
+  z-index: 2;
+  pointer-events: none;
+  transition: border-color 0.3s;
+}
+.hud-panel::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+.hud-panel::after  { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+.hud-panel:hover::before,
+.hud-panel:hover::after { border-color: var(--accent-bright); }
+
+/* ─── PANEL HEADER ──────────────────────────────────────────── */
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid var(--border-dim);
+  background: rgba(0,0,0,0.2);
+}
+
+.panel-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 0.65rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-amber);
+}
+
+.panel-badge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+/* ─── STATUS DOT ────────────────────────────────────────────── */
+.status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-bright);
+  box-shadow: 0 0 6px var(--accent-amber);
+  flex-shrink: 0;
+}
+
+.status-dot.pulse { animation: dot-pulse 2.4s ease-in-out infinite; }
+.status-dot.offline { background: var(--text-muted); box-shadow: none; }
+.status-dot.iron { background: var(--accent-iron); box-shadow: 0 0 6px var(--accent-iron); }
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* ─── BUTTONS ───────────────────────────────────────────────── */
+.btn {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 1px;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid;
+  background: transparent;
+}
+
+.btn-amber {
+  border-color: var(--accent-gold);
+  color: var(--accent-amber);
+}
+.btn-amber:hover {
+  background: rgba(185,122,8,0.15);
+  border-color: var(--accent-bright);
+  color: var(--accent-bright);
+  box-shadow: var(--glow-btn);
+}
+.btn-amber:active { background: rgba(185,122,8,0.28); }
+
+.btn-iron {
+  border-color: var(--accent-iron);
+  color: var(--accent-iron);
+}
+.btn-iron:hover {
+  background: rgba(196,77,24,0.15);
+  box-shadow: 0 0 14px rgba(196,77,24,0.4);
+}
+
+.btn-ghost {
+  border-color: var(--border-dim);
+  color: var(--text-secondary);
+  padding: 0.25rem 0.6rem;
+  font-size: 0.65rem;
+}
+.btn-ghost:hover {
+  border-color: var(--border-mid);
+  color: var(--text-primary);
+}
+
+/* ─── JARVIS TEXT GLOW ──────────────────────────────────────── */
+.jarvis-glow {
+  font-family: 'Rajdhani', sans-serif;
+  color: var(--accent-bright);
+  text-shadow: 0 0 12px rgba(245,173,40,0.5), 0 0 30px rgba(245,173,40,0.15);
+}
+
+/* ─── INPUT ─────────────────────────────────────────────────── */
+.hud-input {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border-dim);
+  border-radius: 1px;
+  color: var(--text-primary);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.7rem;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+.hud-input:focus {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 8px rgba(185,122,8,0.2);
+}
+.hud-input::placeholder { color: var(--text-muted); }
+
+/* ─── ANIMATIONS ────────────────────────────────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes sonar {
+  0%   { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+
+@keyframes scan-line {
+  0%   { top: -4px; }
+  100% { top: 100%; }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
+
+.fade-up { animation: fade-up 0.4s ease forwards; }
+.fade-in { animation: fade-in 0.3s ease forwards; }
+
+/* ─── DIVIDER ───────────────────────────────────────────────── */
+.hud-divider {
+  border: none;
+  border-top: 1px solid var(--border-dim);
+  margin: 0;
+}
+
+/* ─── MONO LABEL ────────────────────────────────────────────── */
+.mono-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+/* ─── RESPONSIVE ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .panel-title { font-size: 0.6rem; letter-spacing: 0.15em; }
+}
