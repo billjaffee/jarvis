@@ -6,23 +6,23 @@
 
 /* ─── DESIGN TOKENS ────────────────────────────────────────── */
 :root {
-  --bg-root:        #0a0906;
-  --bg-panel:       #131109;
-  --bg-panel-alt:   #181408;
-  --bg-hover:       #1e1a0e;
-  --accent-gold:    #b87a08;
-  --accent-amber:   #d98f14;
-  --accent-bright:  #f5ad28;
-  --accent-iron:    #c44d18;
-  --text-primary:   #ead8b0;
-  --text-secondary: #9a8060;
-  --text-muted:     #4a3c28;
-  --border-dim:     rgba(185, 122, 8, 0.22);
-  --border-mid:     rgba(217, 143, 20, 0.4);
-  --border-bright:  rgba(245, 173, 40, 0.7);
-  --glow-sm:        0 0 12px rgba(185, 122, 8, 0.12);
-  --glow-md:        0 0 24px rgba(185, 122, 8, 0.2), 0 0 48px rgba(185, 122, 8, 0.07);
-  --glow-btn:       0 0 14px rgba(245, 173, 40, 0.45);
+  --bg-root:        #0e0c08;
+  --bg-panel:       #181510;
+  --bg-panel-alt:   #1e1a12;
+  --bg-hover:       #252015;
+  --accent-gold:    #d4920c;
+  --accent-amber:   #f0a820;
+  --accent-bright:  #ffc040;
+  --accent-iron:    #e05c20;
+  --text-primary:   #f5e8c8;
+  --text-secondary: #c8a870;
+  --text-muted:     #7a6040;
+  --border-dim:     rgba(210, 145, 12, 0.3);
+  --border-mid:     rgba(240, 168, 32, 0.5);
+  --border-bright:  rgba(255, 192, 64, 0.75);
+  --glow-sm:        0 0 14px rgba(210, 145, 12, 0.16);
+  --glow-md:        0 0 28px rgba(210, 145, 12, 0.25), 0 0 56px rgba(210, 145, 12, 0.09);
+  --glow-btn:       0 0 16px rgba(255, 192, 64, 0.5);
   --radius-panel:   2px;
 }
 
@@ -37,7 +37,7 @@ body {
   background: var(--bg-root);
   color: var(--text-primary);
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: 15px;
+  font-size: 17px;
   overflow-x: hidden;
 }
 
@@ -47,8 +47,8 @@ body::before {
   position: fixed;
   inset: 0;
   background-image:
-    linear-gradient(rgba(185,122,8,0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(185,122,8,0.025) 1px, transparent 1px);
+    linear-gradient(rgba(210,145,12,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(210,145,12,0.03) 1px, transparent 1px);
   background-size: 44px 44px;
   pointer-events: none;
   z-index: 0;
@@ -63,8 +63,8 @@ body::after {
     0deg,
     transparent,
     transparent 3px,
-    rgba(0,0,0,0.04) 3px,
-    rgba(0,0,0,0.04) 4px
+    rgba(0,0,0,0.03) 3px,
+    rgba(0,0,0,0.03) 4px
   );
   pointer-events: none;
   z-index: 9999;
@@ -116,7 +116,7 @@ body::after {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.55rem 0.9rem;
+  padding: 0.6rem 1rem;
   border-bottom: 1px solid var(--border-dim);
   background: rgba(0,0,0,0.2);
 }
@@ -124,7 +124,7 @@ body::after {
 .panel-title {
   font-family: 'Rajdhani', sans-serif;
   font-weight: 600;
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--accent-amber);
@@ -132,15 +132,15 @@ body::after {
 
 .panel-badge {
   font-family: 'Share Tech Mono', monospace;
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   color: var(--text-muted);
   letter-spacing: 0.05em;
 }
 
 /* ─── STATUS DOT ────────────────────────────────────────────── */
 .status-dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--accent-bright);
   box-shadow: 0 0 6px var(--accent-amber);
@@ -160,7 +160,7 @@ body::after {
 .btn {
   font-family: 'Rajdhani', sans-serif;
   font-weight: 600;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   cursor: pointer;
@@ -176,27 +176,27 @@ body::after {
   color: var(--accent-amber);
 }
 .btn-amber:hover {
-  background: rgba(185,122,8,0.15);
+  background: rgba(210,145,12,0.15);
   border-color: var(--accent-bright);
   color: var(--accent-bright);
   box-shadow: var(--glow-btn);
 }
-.btn-amber:active { background: rgba(185,122,8,0.28); }
+.btn-amber:active { background: rgba(210,145,12,0.28); }
 
 .btn-iron {
   border-color: var(--accent-iron);
   color: var(--accent-iron);
 }
 .btn-iron:hover {
-  background: rgba(196,77,24,0.15);
-  box-shadow: 0 0 14px rgba(196,77,24,0.4);
+  background: rgba(224,92,32,0.15);
+  box-shadow: 0 0 14px rgba(224,92,32,0.4);
 }
 
 .btn-ghost {
   border-color: var(--border-dim);
   color: var(--text-secondary);
   padding: 0.25rem 0.6rem;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
 }
 .btn-ghost:hover {
   border-color: var(--border-mid);
@@ -207,7 +207,7 @@ body::after {
 .jarvis-glow {
   font-family: 'Rajdhani', sans-serif;
   color: var(--accent-bright);
-  text-shadow: 0 0 12px rgba(245,173,40,0.5), 0 0 30px rgba(245,173,40,0.15);
+  text-shadow: 0 0 12px rgba(255,192,64,0.5), 0 0 30px rgba(255,192,64,0.15);
 }
 
 /* ─── INPUT ─────────────────────────────────────────────────── */
@@ -217,7 +217,7 @@ body::after {
   border-radius: 1px;
   color: var(--text-primary);
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: 0.9rem;
+  font-size: 1rem;
   padding: 0.4rem 0.7rem;
   outline: none;
   width: 100%;
@@ -225,7 +225,7 @@ body::after {
 }
 .hud-input:focus {
   border-color: var(--accent-gold);
-  box-shadow: 0 0 8px rgba(185,122,8,0.2);
+  box-shadow: 0 0 8px rgba(210,145,12,0.25);
 }
 .hud-input::placeholder { color: var(--text-muted); }
 
@@ -243,11 +243,6 @@ body::after {
 @keyframes sonar {
   0%   { transform: scale(1); opacity: 0.7; }
   100% { transform: scale(2.8); opacity: 0; }
-}
-
-@keyframes scan-line {
-  0%   { top: -4px; }
-  100% { top: 100%; }
 }
 
 @keyframes breathe {
@@ -268,12 +263,12 @@ body::after {
 /* ─── MONO LABEL ────────────────────────────────────────────── */
 .mono-label {
   font-family: 'Share Tech Mono', monospace;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
   letter-spacing: 0.06em;
 }
 
 /* ─── RESPONSIVE ────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .panel-title { font-size: 0.6rem; letter-spacing: 0.15em; }
+  .panel-title { font-size: 0.65rem; letter-spacing: 0.15em; }
 }
