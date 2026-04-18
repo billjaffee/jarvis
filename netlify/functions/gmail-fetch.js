@@ -1,16 +1,11 @@
-// Gmail API proxy — keeps credentials server-side
-// Required Netlify env vars:
-//   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN
-
+// Gmail API proxy — Primary inbox only, keeps credentials server-side
 export const handler = async (event, context) => {
   const CORS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Content-Type': 'application/json',
   }
-
   try {
-    // 1. Exchange refresh token for access token
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -22,21 +17,19 @@ export const handler = async (event, context) => {
       }),
     })
     const { access_token, error: tokenError } = await tokenRes.json()
-    if (tokenError || !access_token) {
-      throw new Error(`Token error: ${tokenError}`)
-    }
+    if (tokenError || !access_token) throw new Error(`Token error: ${tokenError}`)
 
     const auth = { Authorization: `Bearer ${access_token}` }
 
-    // 2. List inbox messages
+    // CATEGORY_PERSONAL = Primary tab only (excludes Promotions, Social, Updates)
     const listRes = await fetch(
-      'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=12&labelIds=INBOX',
+      'https://gmail.googleapis.com/gmail/v1/users/me/messages' +
+      '?maxResults=15&labelIds=INBOX&labelIds=CATEGORY_PERSONAL',
       { headers: auth }
     )
     const listData = await listRes.json()
     const messages = listData.messages || []
 
-    // 3. Fetch metadata for each message in parallel
     const emails = await Promise.all(
       messages.map(async ({ id }) => {
         const msgRes = await fetch(
@@ -47,13 +40,13 @@ export const handler = async (event, context) => {
         const msg = await msgRes.json()
         const headers = msg.payload?.headers || []
         const get = name => headers.find(h => h.name === name)?.value || ''
-        const fromRaw = get('From')
+        const fromRaw  = get('From')
         const fromName = fromRaw.includes('<')
           ? fromRaw.split('<')[0].trim().replace(/^"|"$/g, '')
           : fromRaw
 
         return {
-          id:        msg.id,
+          id,
           from:      fromName,
           fromEmail: fromRaw,
           subject:   get('Subject') || '(no subject)',
@@ -78,10 +71,8 @@ function formatTime(dateStr) {
   const now = new Date()
   const yesterday = new Date(now)
   yesterday.setDate(yesterday.getDate() - 1)
-
   if (d.toDateString() === now.toDateString())
     return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-  if (d.toDateString() === yesterday.toDateString())
-    return 'Yesterday'
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
