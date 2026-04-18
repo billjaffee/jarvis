@@ -124,7 +124,7 @@ export default function Dashboard({ user, onLogout }) {
         .dash-grid {
           display:grid; gap:0.65rem;
           grid-template-columns:repeat(12,1fr);
-          grid-template-rows:minmax(200px,1fr) minmax(230px,1fr) minmax(110px,auto);
+          grid-template-rows:minmax(380px,1fr) minmax(300px,1fr) minmax(130px,auto);
           grid-template-areas:
             "w w w c c c g g g g g g"
             "t t t t n n n news news news news news"

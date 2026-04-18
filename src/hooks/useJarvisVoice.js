@@ -10,17 +10,24 @@ function pickVoice(voices) {
 }
 
 export function useJarvisVoice() {
-  const [isSpeaking, setIsSpeaking]       = useState(false)
-  const [isListening, setIsListening]     = useState(false)
-  const [isThinking, setIsThinking]       = useState(false)
+  const [isSpeaking, setIsSpeaking]         = useState(false)
+  const [isListening, setIsListening]       = useState(false)
+  const [isThinking, setIsThinking]         = useState(false)
   const [lastTranscript, setLastTranscript] = useState('')
-  const [lastResponse, setLastResponse]   = useState('')
-  const [voiceReady, setVoiceReady]       = useState(false)
-  const [history, setHistory]             = useState([])
-  const recognitionRef = useRef(null)
+  const [lastResponse, setLastResponse]     = useState('')
+  const [voiceReady, setVoiceReady]         = useState(false)
+  const [history, setHistory]               = useState([])
+
+  // Use refs to avoid stale closures in async callbacks
   const voicesRef      = useRef([])
   const contextRef     = useRef({})
+  const historyRef     = useRef([])      // mirror of history state, always current
+  const recognitionRef = useRef(null)
 
+  // Keep historyRef in sync
+  useEffect(() => { historyRef.current = history }, [history])
+
+  // Load voices
   useEffect(() => {
     const load = () => {
       const v = window.speechSynthesis?.getVoices() || []
@@ -35,15 +42,15 @@ export function useJarvisVoice() {
   const speak = useCallback((text, opts = {}) => {
     if (!window.speechSynthesis || !text) return
     window.speechSynthesis.cancel()
-    const utterance    = new SpeechSynthesisUtterance(text)
-    utterance.voice    = pickVoice(voicesRef.current)
-    utterance.rate     = opts.rate  ?? 0.90
-    utterance.pitch    = opts.pitch ?? 0.80
-    utterance.volume   = opts.volume ?? 1
-    utterance.onstart  = () => setIsSpeaking(true)
-    utterance.onend    = () => setIsSpeaking(false)
-    utterance.onerror  = () => setIsSpeaking(false)
-    window.speechSynthesis.speak(utterance)
+    const u     = new SpeechSynthesisUtterance(text)
+    u.voice     = pickVoice(voicesRef.current)
+    u.rate      = opts.rate  ?? 0.90
+    u.pitch     = opts.pitch ?? 0.80
+    u.volume    = opts.volume ?? 1
+    u.onstart   = () => setIsSpeaking(true)
+    u.onend     = () => setIsSpeaking(false)
+    u.onerror   = () => setIsSpeaking(false)
+    window.speechSynthesis.speak(u)
     setLastResponse(text)
   }, [])
 
@@ -52,11 +59,9 @@ export function useJarvisVoice() {
     setIsSpeaking(false)
   }, [])
 
-  const setContext = useCallback((ctx) => {
-    contextRef.current = ctx
-  }, [])
+  const setContext = useCallback((ctx) => { contextRef.current = ctx }, [])
 
-  // Execute actions returned by Claude
+  // Execute actions — stable, no deps on changing state
   const executeAction = useCallback(async (action) => {
     const { type, params = {} } = action
     try {
@@ -64,144 +69,133 @@ export function useJarvisVoice() {
         case 'add_task':
           window.__jarvisAddTask?.(params.text)
           break
-
-        case 'play_music': {
-          // Open YouTube with the song — closest to the Iron Man experience
-          const query = encodeURIComponent(params.query || 'Should I Stay or Should I Go The Clash')
-          window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank', 'noopener')
-          break
-        }
-
         case 'reply_email':
           await fetch('/.netlify/functions/gmail-reply', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(params),
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(params),
           })
           break
-
         case 'delete_email':
           await fetch('/.netlify/functions/gmail-delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messageId: params.emailId }),
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ messageId:params.emailId }),
           })
           contextRef.current.onDeleteEmail?.(params.emailId)
           break
-
         case 'mark_read':
           await fetch('/.netlify/functions/gmail-mark-read', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messageId: params.emailId }),
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ messageId:params.emailId }),
           })
           contextRef.current.onMarkRead?.(params.emailId)
           break
-
         case 'accept_kate_invites':
-          await fetch('/.netlify/functions/calendar-accept', { method: 'POST' })
+          await fetch('/.netlify/functions/calendar-accept', { method:'POST' })
           break
-
         case 'compose_email':
           await fetch('/.netlify/functions/gmail-reply', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...params, messageId: 'new' }),
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ ...params, messageId:'new' }),
           })
           break
-
         default:
           break
       }
-    } catch (err) {
-      console.error('Action error:', err)
-    }
+    } catch (err) { console.error('Action error:', err) }
   }, [])
 
-  const processWithAI = useCallback(async (transcript) => {
+  // Core AI call — uses refs so always has fresh data, no stale closure
+  const sendMessage = useCallback(async (text) => {
+    if (!text?.trim()) return
     setIsThinking(true)
     try {
       const res = await fetch('/.netlify/functions/jarvis-ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: transcript,
-          history,
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          message: text,
+          history: historyRef.current.slice(-12),   // always fresh via ref
           dashboardContext: {
-            ...contextRef.current,
+            ...contextRef.current,                   // always fresh via ref
             time: new Date().toISOString(),
           },
         }),
       })
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       const { speech, action } = data
 
-      setHistory(prev => [
-        ...prev.slice(-18),
-        { role: 'user',      content: transcript },
-        { role: 'assistant', content: speech },
-      ])
+      // Update history
+      const newHistory = [
+        ...historyRef.current.slice(-18),
+        { role:'user',      content:text },
+        { role:'assistant', content:speech || '' },
+      ]
+      historyRef.current = newHistory
+      setHistory(newHistory)
 
       if (speech) speak(speech)
       if (action?.type) await executeAction(action)
     } catch (err) {
-      speak("My apologies, sir. Something's gone sideways on my end. I'll sort it.")
       console.error('AI error:', err)
+      speak("My apologies, sir. I seem to have lost the thread. Shall we try again?")
     } finally {
       setIsThinking(false)
     }
-  }, [history, speak, executeAction])
+  }, [speak, executeAction]) // stable — speak and executeAction don't change
 
   const startListening = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) {
-      speak("Voice recognition isn't available in this browser, sir. I'd recommend Chrome.")
+      speak("Voice recognition isn't available in this browser, sir. Chrome or Edge will do nicely.")
       return
     }
-    const recognition = new SR()
-    recognition.lang = 'en-US'
-    recognition.interimResults = false
-    recognition.maxAlternatives = 1
-    recognition.continuous = false
-
-    recognition.onstart  = () => setIsListening(true)
-    recognition.onend    = () => setIsListening(false)
-    recognition.onerror  = (e) => {
+    const rec = new SR()
+    rec.lang = 'en-US'
+    rec.interimResults = false
+    rec.maxAlternatives = 1
+    rec.continuous = false
+    rec.onstart   = () => setIsListening(true)
+    rec.onend     = () => setIsListening(false)
+    rec.onerror   = (e) => {
       setIsListening(false)
       if (e.error !== 'no-speech') speak("I didn't quite catch that, sir. Shall we try again?")
     }
-    recognition.onresult = (e) => {
+    rec.onresult  = (e) => {
       const text = e.results[0][0].transcript
       setLastTranscript(text)
-      processWithAI(text)
+      sendMessage(text)  // sendMessage is stable, safe to call here
     }
-
-    recognitionRef.current = recognition
-    recognition.start()
-  }, [speak, processWithAI])
+    recognitionRef.current = rec
+    rec.start()
+  }, [speak, sendMessage])
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop()
     setIsListening(false)
   }, [])
 
-  const clearHistory = useCallback(() => setHistory([]), [])
+  const clearHistory = useCallback(() => {
+    historyRef.current = []
+    setHistory([])
+  }, [])
 
   return {
     speak, stopSpeaking, isSpeaking,
     startListening, stopListening, isListening,
     isThinking, lastTranscript, lastResponse,
-    voiceReady, history, clearHistory, setContext,
-    sendMessage: processWithAI,
+    voiceReady, history, clearHistory,
+    setContext, sendMessage,
   }
 }
 
-export function getGreeting(firstName = 'sir') {
+export function getGreeting(name = 'sir') {
   const h   = new Date().getHours()
-  const day = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-  if (h < 5)  return `Still at it, sir. It's ${day}. All systems are online. Here's your current status.`
+  const day = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' })
+  if (h < 5)  return `Still at it, sir. It's ${day}. All systems nominal. Here's your status.`
   if (h < 12) return `Good morning, sir. It's ${day}. Here's a look at what's on your radar. I'm here to assist.`
   if (h < 17) return `Good afternoon, sir. It's ${day}. Here's a look at what's on your radar. I'm here to assist.`
-  if (h < 21) return `Good evening, sir. It's ${day}. Here's your status. I'm standing by.`
+  if (h < 21) return `Good evening, sir. It's ${day}. Here's your status. Standing by.`
   return `Working late again, sir. It's ${day}. I've kept the lights on. Here's where things stand.`
 }
