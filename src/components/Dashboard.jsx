@@ -35,7 +35,7 @@ export default function Dashboard({ user, onLogout }) {
   const [acceptingKate, setAcceptingKate] = useState(false)
   const [kateMsg, setKateMsg]           = useState('')
 
-  const { speak, stopSpeaking, isSpeaking, startListening, stopListening, isListening, lastTranscript, voiceReady } = useJarvisVoice()
+  const { speak, stopSpeaking, isSpeaking, startListening, stopListening, isListening, isThinking, lastTranscript, lastResponse, voiceReady, history, setContext } = useJarvisVoice()
 
   useEffect(() => { const t = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(t) }, [])
 
@@ -50,7 +50,7 @@ export default function Dashboard({ user, onLogout }) {
 
   // Show orb when listening or speaking
   useEffect(() => {
-    if (isListening || isSpeaking) setShowOrb(true)
+    if (isListening || isSpeaking || isThinking) setShowOrb(true)
     else setTimeout(() => setShowOrb(false), 300)
   }, [isListening, isSpeaking])
 
@@ -64,10 +64,15 @@ export default function Dashboard({ user, onLogout }) {
     return () => clearInterval(t)
   }, [])
 
+  // Keep AI context updated
+  useEffect(() => {
+    setContext({ weather, events: liveEvents, emails: liveEmails, tasks, notes, tickers })
+  })
+
   const handleMicClick = () => {
     const ctx = { weather, events: liveEvents, emailCount: liveEmails.filter(e=>e.unread).length, flaggedCount: liveEmails.filter(e=>e.flagged).length, tasks, notes, addTask: t => window.__jarvisAddTask?.(t) }
     if (isListening) stopListening()
-    else startListening(ctx)
+    else startListening()
   }
 
   const handleAcceptKate = async () => {
@@ -115,7 +120,7 @@ export default function Dashboard({ user, onLogout }) {
       `}</style>
 
       {/* ── VOICE ORB ── */}
-      {showOrb && <VoiceOrb isListening={isListening} isSpeaking={isSpeaking} onClose={stopListening} />}
+      {showOrb && <VoiceOrb isListening={isListening} isSpeaking={isSpeaking} isThinking={isThinking} lastTranscript={lastTranscript} lastResponse={lastResponse} history={history} onClose={stopListening} />}
 
       {/* ── TICKER BAR ── */}
       {tickers.length > 0 && (
