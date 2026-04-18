@@ -124,7 +124,7 @@ export default function Dashboard({ user, onLogout }) {
         .dash-grid {
           display:grid; gap:0.65rem;
           grid-template-columns:repeat(12,1fr);
-          grid-template-rows:minmax(380px,1fr) minmax(300px,1fr) minmax(130px,auto);
+          grid-template-rows:minmax(460px,1fr) minmax(340px,1fr) minmax(140px,auto);
           grid-template-areas:
             "w w w c c c g g g g g g"
             "t t t t n n n news news news news news"
@@ -176,16 +176,28 @@ export default function Dashboard({ user, onLogout }) {
         </div>
       )}
 
-      {/* TICKER BAR */}
+      {/* TICKER BAR — centered, larger, clickable */}
       {tickers.length > 0 && (
-        <div style={{ background:'rgba(0,0,0,0.5)', borderBottom:'1px solid var(--border-dim)', height:28, display:'flex', alignItems:'center', gap:'1.2rem', paddingLeft:`max(env(safe-area-inset-left,0.8rem),0.8rem)`, paddingRight:'0.8rem', overflowX:'auto', flexShrink:0, WebkitOverflowScrolling:'touch', msOverflowStyle:'none', scrollbarWidth:'none' }}>
-          {tickers.map(t => (
-            <div key={t.symbol} style={{ display:'flex', alignItems:'center', gap:'0.35rem', flexShrink:0 }}>
-              <span style={{ fontFamily:'Rajdhani,sans-serif', fontWeight:700, fontSize:'0.72rem', letterSpacing:'0.1em', color:'var(--accent-cyan)' }}>{t.label}</span>
-              <span style={{ fontFamily:'Share Tech Mono,monospace', fontSize:'0.72rem', color:'var(--text-primary)' }}>{t.price ? (t.symbol.startsWith('^') ? Number(t.price).toLocaleString() : `$${t.price}`) : '—'}</span>
-              {t.pct !== null && <span style={{ fontFamily:'Share Tech Mono,monospace', fontSize:'0.65rem', color:t.up ? 'var(--accent-green)' : 'var(--accent-iron)', display:'flex', alignItems:'center', gap:1 }}>{t.up ? <TrendingUp size={9}/> : <TrendingDown size={9}/>}{t.up?'+':''}{t.pct}%</span>}
-            </div>
-          ))}
+        <div style={{ background:'rgba(0,0,0,0.55)', borderBottom:'1px solid var(--border-dim)', height:36, display:'flex', alignItems:'center', justifyContent:'center', gap:'2rem', padding:'0 1rem', overflowX:'auto', flexShrink:0, WebkitOverflowScrolling:'touch' }}>
+          {tickers.map(t => {
+            const yahooSym = t.symbol.startsWith('^') ? t.symbol.replace('^','%5E') : t.symbol
+            const yahooUrl = `https://finance.yahoo.com/quote/${yahooSym}`
+            return (
+              <a key={t.symbol} href={yahooUrl} target="_blank" rel="noopener noreferrer"
+                style={{ display:'flex', alignItems:'center', gap:'0.5rem', flexShrink:0, textDecoration:'none', transition:'opacity 0.2s' }}
+                onMouseEnter={e=>e.currentTarget.style.opacity='0.75'}
+                onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
+                <span style={{ fontFamily:'Rajdhani,sans-serif', fontWeight:700, fontSize:'0.9rem', letterSpacing:'0.1em', color:'var(--accent-cyan)' }}>{t.label}</span>
+                <span style={{ fontFamily:'Share Tech Mono,monospace', fontSize:'0.88rem', color:'var(--text-primary)' }}>{t.price ? (t.symbol.startsWith('^') ? Number(t.price).toLocaleString() : `$${t.price}`) : '—'}</span>
+                {t.pct !== null && (
+                  <span style={{ fontFamily:'Share Tech Mono,monospace', fontSize:'0.8rem', color:t.up?'var(--accent-green)':'var(--accent-iron)', display:'flex', alignItems:'center', gap:2 }}>
+                    {t.up ? <TrendingUp size={11}/> : <TrendingDown size={11}/>}
+                    {t.up?'+':''}{t.pct}%
+                  </span>
+                )}
+              </a>
+            )
+          })}
         </div>
       )}
 
