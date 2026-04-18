@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, useEffect } from 'react'
 
 function pickVoice(voices) {
-  const priority = ['Google UK English Male', 'Daniel', 'Arthur', 'Oliver', 'Malcolm']
+  const priority = ['Google UK English Male', 'Daniel', 'Arthur', 'Oliver', 'Malcolm', 'James']
   for (const name of priority) {
     const v = voices.find(v => v.name.includes(name))
     if (v) return v
@@ -16,12 +16,11 @@ export function useJarvisVoice() {
   const [lastTranscript, setLastTranscript] = useState('')
   const [lastResponse, setLastResponse]   = useState('')
   const [voiceReady, setVoiceReady]       = useState(false)
-  const [history, setHistory]             = useState([]) // conversation history
+  const [history, setHistory]             = useState([])
   const recognitionRef = useRef(null)
   const voicesRef      = useRef([])
-  const contextRef     = useRef({}) // updated by Dashboard on every render
+  const contextRef     = useRef({})
 
-  // Load voices
   useEffect(() => {
     const load = () => {
       const v = window.speechSynthesis?.getVoices() || []
@@ -38,8 +37,8 @@ export function useJarvisVoice() {
     window.speechSynthesis.cancel()
     const utterance    = new SpeechSynthesisUtterance(text)
     utterance.voice    = pickVoice(voicesRef.current)
-    utterance.rate     = opts.rate  ?? 0.92
-    utterance.pitch    = opts.pitch ?? 0.82
+    utterance.rate     = opts.rate  ?? 0.90
+    utterance.pitch    = opts.pitch ?? 0.80
     utterance.volume   = opts.volume ?? 1
     utterance.onstart  = () => setIsSpeaking(true)
     utterance.onend    = () => setIsSpeaking(false)
@@ -53,12 +52,72 @@ export function useJarvisVoice() {
     setIsSpeaking(false)
   }, [])
 
-  // Set dashboard context (called from Dashboard on every render)
   const setContext = useCallback((ctx) => {
     contextRef.current = ctx
   }, [])
 
-  // Send transcript to Claude and handle response + actions
+  // Execute actions returned by Claude
+  const executeAction = useCallback(async (action) => {
+    const { type, params = {} } = action
+    try {
+      switch (type) {
+        case 'add_task':
+          window.__jarvisAddTask?.(params.text)
+          break
+
+        case 'play_music': {
+          // Open YouTube with the song — closest to the Iron Man experience
+          const query = encodeURIComponent(params.query || 'Should I Stay or Should I Go The Clash')
+          window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank', 'noopener')
+          break
+        }
+
+        case 'reply_email':
+          await fetch('/.netlify/functions/gmail-reply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params),
+          })
+          break
+
+        case 'delete_email':
+          await fetch('/.netlify/functions/gmail-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messageId: params.emailId }),
+          })
+          contextRef.current.onDeleteEmail?.(params.emailId)
+          break
+
+        case 'mark_read':
+          await fetch('/.netlify/functions/gmail-mark-read', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messageId: params.emailId }),
+          })
+          contextRef.current.onMarkRead?.(params.emailId)
+          break
+
+        case 'accept_kate_invites':
+          await fetch('/.netlify/functions/calendar-accept', { method: 'POST' })
+          break
+
+        case 'compose_email':
+          await fetch('/.netlify/functions/gmail-reply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...params, messageId: 'new' }),
+          })
+          break
+
+        default:
+          break
+      }
+    } catch (err) {
+      console.error('Action error:', err)
+    }
+  }, [])
+
   const processWithAI = useCallback(async (transcript) => {
     setIsThinking(true)
     try {
@@ -77,32 +136,26 @@ export function useJarvisVoice() {
       const data = await res.json()
       const { speech, action } = data
 
-      // Update conversation history
       setHistory(prev => [
-        ...prev.slice(-18), // keep last 18 messages (9 exchanges)
+        ...prev.slice(-18),
         { role: 'user',      content: transcript },
         { role: 'assistant', content: speech },
       ])
 
-      // Speak the response
       if (speech) speak(speech)
-
-      // Execute action if any
-      if (action?.type) {
-        await executeAction(action, contextRef.current)
-      }
+      if (action?.type) await executeAction(action)
     } catch (err) {
-      speak("I'm having trouble connecting to my AI systems, Mr. Jaffee. Please check my logs.")
+      speak("My apologies, sir. Something's gone sideways on my end. I'll sort it.")
       console.error('AI error:', err)
     } finally {
       setIsThinking(false)
     }
-  }, [history, speak])
+  }, [history, speak, executeAction])
 
   const startListening = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) {
-      speak("Voice recognition isn't supported in this browser, Mr. Jaffee. I recommend Chrome or Edge.")
+      speak("Voice recognition isn't available in this browser, sir. I'd recommend Chrome.")
       return
     }
     const recognition = new SR()
@@ -110,17 +163,19 @@ export function useJarvisVoice() {
     recognition.interimResults = false
     recognition.maxAlternatives = 1
     recognition.continuous = false
+
     recognition.onstart  = () => setIsListening(true)
     recognition.onend    = () => setIsListening(false)
     recognition.onerror  = (e) => {
       setIsListening(false)
-      if (e.error !== 'no-speech') speak("I didn't catch that, Mr. Jaffee. Please try again.")
+      if (e.error !== 'no-speech') speak("I didn't quite catch that, sir. Shall we try again?")
     }
     recognition.onresult = (e) => {
       const text = e.results[0][0].transcript
       setLastTranscript(text)
       processWithAI(text)
     }
+
     recognitionRef.current = recognition
     recognition.start()
   }, [speak, processWithAI])
@@ -140,68 +195,12 @@ export function useJarvisVoice() {
   }
 }
 
-// Execute actions returned by Claude
-async function executeAction(action, ctx) {
-  const { type, params = {} } = action
-  try {
-    switch (type) {
-      case 'add_task':
-        window.__jarvisAddTask?.(params.text)
-        break
-
-      case 'reply_email':
-        await fetch('/.netlify/functions/gmail-reply', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(params),
-        })
-        break
-
-      case 'delete_email':
-        await fetch('/.netlify/functions/gmail-delete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messageId: params.emailId }),
-        })
-        // Remove from UI
-        ctx.onDeleteEmail?.(params.emailId)
-        break
-
-      case 'mark_read':
-        await fetch('/.netlify/functions/gmail-mark-read', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messageId: params.emailId }),
-        })
-        ctx.onMarkRead?.(params.emailId)
-        break
-
-      case 'accept_kate_invites':
-        await fetch('/.netlify/functions/calendar-accept', { method: 'POST' })
-        break
-
-      case 'compose_email':
-        await fetch('/.netlify/functions/gmail-reply', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...params, messageId: 'new' }),
-        })
-        break
-
-      default:
-        break
-    }
-  } catch (err) {
-    console.error('Action error:', err)
-  }
-}
-
-export function getGreeting(firstName = 'Mr. Jaffee') {
+export function getGreeting(firstName = 'sir') {
   const h   = new Date().getHours()
   const day = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-  if (h < 5)  return `Still burning the midnight oil, ${firstName}. It's ${day}. Here's a look at what's on your radar. I'm here to assist.`
-  if (h < 12) return `Good morning, ${firstName}. It's ${day}. Here's a look at what's on your radar. I'm here to assist.`
-  if (h < 17) return `Good afternoon, ${firstName}. It's ${day}. Here's a look at what's on your radar. I'm here to assist.`
-  if (h < 21) return `Good evening, ${firstName}. It's ${day}. Here's a look at what's on your radar. I'm here to assist.`
-  return `Working late, ${firstName}. It's ${day}. Here's a look at what's on your radar. I'm here to assist.`
+  if (h < 5)  return `Still at it, sir. It's ${day}. All systems are online. Here's your current status.`
+  if (h < 12) return `Good morning, sir. It's ${day}. Here's a look at what's on your radar. I'm here to assist.`
+  if (h < 17) return `Good afternoon, sir. It's ${day}. Here's a look at what's on your radar. I'm here to assist.`
+  if (h < 21) return `Good evening, sir. It's ${day}. Here's your status. I'm standing by.`
+  return `Working late again, sir. It's ${day}. I've kept the lights on. Here's where things stand.`
 }
