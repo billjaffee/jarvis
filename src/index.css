@@ -245,3 +245,31 @@ body::after {
 @media (max-width: 768px) {
   .panel-title { font-size: 0.65rem; letter-spacing: 0.15em; }
 }
+
+/* ─── READABILITY IMPROVEMENTS ─────────────────────────────── */
+.panel-title   { font-size: 0.78rem !important; }
+.panel-badge   { font-size: 0.7rem  !important; }
+.mono-label    { font-size: 0.72rem !important; }
+
+/* ─── MOBILE / PWA ──────────────────────────────────────────── */
+@media (max-width: 600px) {
+  body { font-size: 16px; }
+
+  .panel-header { padding: 0.6rem 0.8rem; }
+  .panel-title  { font-size: 0.75rem !important; }
+
+  /* Safe area for iPhone notch */
+  header {
+    padding-top: env(safe-area-inset-top, 0) !important;
+  }
+  .jarvis-bottom-bar {
+    padding-bottom: env(safe-area-inset-bottom, 0) !important;
+  }
+}
+
+/* ─── LIGHT MODE READABILITY ────────────────────────────────── */
+[data-theme="light"] .panel-title  { color: var(--accent-blue) !important; }
+[data-theme="light"] .panel-badge  { color: #4a7a99 !important; }
+[data-theme="light"] .mono-label   { color: #4a7a99 !important; }
+[data-theme="light"] .hud-panel    { border-color: rgba(0,120,180,0.22) !important; }
+[data-theme="light"] .panel-header { background: rgba(0,120,180,0.06) !important; border-bottom-color: rgba(0,120,180,0.15) !important; }
