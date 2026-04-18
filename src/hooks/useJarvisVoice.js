@@ -192,6 +192,7 @@ export function useJarvisVoice() {
     startListening, stopListening, isListening,
     isThinking, lastTranscript, lastResponse,
     voiceReady, history, clearHistory, setContext,
+    sendMessage: processWithAI,
   }
 }
 
