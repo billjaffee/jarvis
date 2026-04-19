@@ -105,7 +105,7 @@ export default function ChatPanel({ dashboardContext }) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-          placeholder='Ask Jarvis anything... "What\'s on my calendar?" "Reply to Kate..."'
+          placeholder="Ask Jarvis anything... What's on my calendar? Reply to Kate..."
           disabled={thinking}
           style={{
             flex: 1,
