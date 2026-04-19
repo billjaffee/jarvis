@@ -1,79 +1,75 @@
-// Server-side AP News RSS proxy
 export const handler = async (event, context) => {
-  const CORS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Content-Type': 'application/json',
-  }
+  const CORS = { 'Access-Control-Allow-Origin':'*','Content-Type':'application/json' }
 
-  // Try multiple AP/news RSS feeds in order
   const feeds = [
-    'https://feeds.apnews.com/rss/topnews',
-    'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml',
-    'https://feeds.bbci.co.uk/news/rss.xml',
+    { url:'https://gazette.com/search/?f=rss&t=article&c=news&l=50&s=start_time&sd=desc', source:'CS Gazette' },
+    { url:'https://feeds.apnews.com/rss/topnews', source:'AP News' },
+    { url:'https://feeds.a.dj.com/rss/RSSWorldNews.xml', source:'WSJ' },
+    { url:'https://feeds.a.dj.com/rss/WSJcomUSBusiness.xml', source:'WSJ' },
   ]
 
-  for (const feedUrl of feeds) {
+  const articles = []
+
+  for (const { url, source } of feeds) {
     try {
-      const encoded = encodeURIComponent(feedUrl)
-      const res = await fetch(
-        `https://api.rss2json.com/v1/api.json?rss_url=${encoded}&count=10`,
-        { headers: { 'User-Agent': 'Mozilla/5.0' } }
-      )
+      const encoded = encodeURIComponent(url)
+      const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encoded}&count=4`, {
+        headers: { 'User-Agent':'Mozilla/5.0' }
+      })
       const data = await res.json()
       if (data.status === 'ok' && data.items?.length) {
-        return {
-          statusCode: 200,
-          headers: CORS,
-          body: JSON.stringify(formatItems(data.items, data.feed?.title || 'AP News')),
+        for (const item of data.items.slice(0, 4)) {
+          articles.push({
+            id:     item.guid || item.link,
+            title:  item.title?.replace(/&amp;/g,'&').replace(/&#39;/g,"'") || '',
+            source,
+            time:   timeAgo(item.pubDate),
+            url:    item.link,
+          })
         }
       }
-    } catch { continue }
+    } catch {}
   }
 
-  // Final fallback: parse RSS XML directly
-  try {
-    const res = await fetch('https://feeds.apnews.com/rss/topnews', {
-      headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/rss+xml, application/xml' }
-    })
-    const xml = await res.text()
-    const items = parseRSS(xml)
-    if (items.length) {
-      return { statusCode: 200, headers: CORS, body: JSON.stringify(items) }
-    }
-  } catch {}
+  // If RSS2JSON failed for Gazette, try direct XML
+  if (articles.filter(a=>a.source==='CS Gazette').length === 0) {
+    try {
+      const res = await fetch('https://gazette.com/search/?f=rss&t=article&c=news', { headers:{'User-Agent':'Mozilla/5.0'} })
+      const xml  = await res.text()
+      const items = parseRSS(xml, 'CS Gazette')
+      articles.unshift(...items)
+    } catch {}
+  }
 
-  return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: 'All feeds failed' }) }
+  // Dedupe and limit to 10
+  const seen  = new Set()
+  const final = []
+  for (const a of articles) {
+    if (!seen.has(a.title) && a.title) { seen.add(a.title); final.push(a) }
+    if (final.length >= 10) break
+  }
+
+  if (final.length === 0) return { statusCode:500, headers:CORS, body:JSON.stringify({ error:'All feeds failed' }) }
+  return { statusCode:200, headers:CORS, body:JSON.stringify(final) }
 }
 
-function formatItems(items, source) {
-  return items.slice(0, 10).map(item => ({
-    id:     item.guid || item.link,
-    title:  item.title?.replace(/&amp;/g, '&').replace(/&#39;/g, "'") || '',
-    source: source,
-    time:   timeAgo(item.pubDate),
-    url:    item.link,
-  }))
-}
-
-function parseRSS(xml) {
+function parseRSS(xml, source) {
   const items = []
-  const itemMatches = xml.matchAll(/<item>([\s\S]*?)<\/item>/g)
-  for (const match of itemMatches) {
-    const content = match[1]
-    const title   = content.match(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/)?.[1] || ''
-    const link    = content.match(/<link>(.*?)<\/link>/)?.[1] || ''
-    const pubDate = content.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] || ''
-    if (title) items.push({ id: link, title: title.replace(/&amp;/g, '&'), source: 'AP News', time: timeAgo(pubDate), url: link })
+  for (const m of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
+    const c     = m[1]
+    const title = c.match(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/)?.[1] || ''
+    const link  = c.match(/<link>(.*?)<\/link>/)?.[1] || ''
+    const date  = c.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] || ''
+    if (title) items.push({ id:link, title:title.replace(/&amp;/g,'&'), source, time:timeAgo(date), url:link })
   }
-  return items.slice(0, 10)
+  return items.slice(0,4)
 }
 
 function timeAgo(dateStr) {
   if (!dateStr) return ''
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000
   if (diff < 60)    return 'just now'
-  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return `${Math.floor(diff / 86400)}d ago`
+  if (diff < 3600)  return `${Math.floor(diff/60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`
+  return `${Math.floor(diff/86400)}d ago`
 }
