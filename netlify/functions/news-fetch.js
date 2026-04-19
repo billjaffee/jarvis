@@ -1,68 +1,40 @@
 export const handler = async (event, context) => {
-  const CORS = { 'Access-Control-Allow-Origin':'*','Content-Type':'application/json' }
+  const CORS = { 'Access-Control-Allow-Origin':'*', 'Content-Type':'application/json' }
+  const key  = process.env.NEWSAPI_KEY
 
-  const feeds = [
-    { url:'https://gazette.com/search/?f=rss&t=article&c=news&l=50&s=start_time&sd=desc', source:'CS Gazette' },
-    { url:'https://feeds.apnews.com/rss/topnews', source:'AP News' },
-    { url:'https://feeds.a.dj.com/rss/RSSWorldNews.xml', source:'WSJ' },
-    { url:'https://feeds.a.dj.com/rss/WSJcomUSBusiness.xml', source:'WSJ' },
-  ]
-
-  const articles = []
-
-  for (const { url, source } of feeds) {
-    try {
-      const encoded = encodeURIComponent(url)
-      const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encoded}&count=4`, {
-        headers: { 'User-Agent':'Mozilla/5.0' }
-      })
-      const data = await res.json()
-      if (data.status === 'ok' && data.items?.length) {
-        for (const item of data.items.slice(0, 4)) {
-          articles.push({
-            id:     item.guid || item.link,
-            title:  item.title?.replace(/&amp;/g,'&').replace(/&#39;/g,"'") || '',
-            source,
-            time:   timeAgo(item.pubDate),
-            url:    item.link,
-          })
-        }
-      }
-    } catch {}
+  if (!key) {
+    return {
+      statusCode: 200, headers: CORS,
+      body: JSON.stringify([
+        { id:'setup', title:'Add NEWSAPI_KEY to Netlify env vars to enable live headlines', source:'Setup Required', time:'', url:'https://newsapi.org/register' },
+      ])
+    }
   }
 
-  // If RSS2JSON failed for Gazette, try direct XML
-  if (articles.filter(a=>a.source==='CS Gazette').length === 0) {
-    try {
-      const res = await fetch('https://gazette.com/search/?f=rss&t=article&c=news', { headers:{'User-Agent':'Mozilla/5.0'} })
-      const xml  = await res.text()
-      const items = parseRSS(xml, 'CS Gazette')
-      articles.unshift(...items)
-    } catch {}
-  }
+  try {
+    const res = await fetch(
+      `https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey=${key}`,
+      { headers: { 'User-Agent': 'JarvisDashboard/1.0' } }
+    )
+    const data = await res.json()
+    if (data.status !== 'ok') throw new Error(data.message || 'API error')
 
-  // Dedupe and limit to 10
-  const seen  = new Set()
-  const final = []
-  for (const a of articles) {
-    if (!seen.has(a.title) && a.title) { seen.add(a.title); final.push(a) }
-    if (final.length >= 10) break
-  }
+    const articles = (data.articles || [])
+      .filter(a => a.title && a.title !== '[Removed]')
+      .slice(0, 10)
+      .map((a, i) => ({
+        id:     a.url || String(i),
+        title:  a.title.replace(/\s*-\s*[^-]+$/, '').trim(),
+        source: a.source?.name || 'News',
+        time:   timeAgo(a.publishedAt),
+        url:    a.url || '',
+      }))
 
-  if (final.length === 0) return { statusCode:500, headers:CORS, body:JSON.stringify({ error:'All feeds failed' }) }
-  return { statusCode:200, headers:CORS, body:JSON.stringify(final) }
-}
-
-function parseRSS(xml, source) {
-  const items = []
-  for (const m of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
-    const c     = m[1]
-    const title = c.match(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/)?.[1] || ''
-    const link  = c.match(/<link>(.*?)<\/link>/)?.[1] || ''
-    const date  = c.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] || ''
-    if (title) items.push({ id:link, title:title.replace(/&amp;/g,'&'), source, time:timeAgo(date), url:link })
+    return { statusCode: 200, headers: CORS, body: JSON.stringify(articles) }
+  } catch (err) {
+    console.error('news-fetch error:', err)
+    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: err.message }) }
   }
-  return items.slice(0,4)
 }
 
 function timeAgo(dateStr) {
